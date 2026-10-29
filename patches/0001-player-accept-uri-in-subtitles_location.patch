@@ -1,0 +1,17 @@
+--- a/application/vlc-android/src/org/videolan/vlc/media/PlayerController.kt
++++ b/application/vlc-android/src/org/videolan/vlc/media/PlayerController.kt
+@@ -170,7 +170,13 @@
+ 
+     fun setVideoTrackEnabled(enabled: Boolean) = mediaplayer.setVideoTrackEnabled(enabled)
+ 
+-    fun addSubtitleTrack(path: String, select: Boolean) = mediaplayer.addSlave(IMedia.Slave.Type.Subtitle, path, select)
++    /**
++     * [path] is a local path, or a URI such as http://, https:// or smb://.
++     * A URI must reach libvlc as a [Uri]: the String overload of addSlave() reads its argument as a local path.
++     */
++    fun addSubtitleTrack(path: String, select: Boolean): Boolean =
++        if (path.contains("://")) mediaplayer.addSlave(IMedia.Slave.Type.Subtitle, path.toUri(), select)
++        else mediaplayer.addSlave(IMedia.Slave.Type.Subtitle, path, select)
+ 
+     fun addSubtitleTrack(uri: Uri, select: Boolean) = mediaplayer.addSlave(IMedia.Slave.Type.Subtitle, uri, select)
+ 
