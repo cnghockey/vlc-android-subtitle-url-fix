@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 cnghockey. GPL-2.0-or-later. See LICENSE in the repository root.
 """Show why VLC for Android drops a subtitle given as a web address, and why the fix works.
 
 VLC for Android adds the `subtitles_location` subtitle with libvlc's add_slave().

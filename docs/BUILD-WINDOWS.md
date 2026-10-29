@@ -104,3 +104,5 @@ To go back: `adb uninstall org.videolan.vlc`, then install VLC from the Play Sto
 The patch fits the `3.7.2` tag and `master` of October 2026. For another tag, apply it by hand: the
 change is one function in
 `application/vlc-android/src/org/videolan/vlc/media/PlayerController.kt`.
+
+Copyright (C) 2026 cnghockey. GPL-2.0-or-later (see the repository's `LICENSE`).

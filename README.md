@@ -95,9 +95,16 @@ VLC's own settings. After that, the Play Store no longer updates VLC for you.
 A binary signed with one person's key, named "VLC", is a modified VLC under VideoLAN's name. Build
 your own from the patch. Do not trust an APK from anyone, including this repository's author.
 
+## Author
+
+[cnghockey](https://github.com/cnghockey)
+
 ## License
 
 GPL-2.0-or-later, the same as VLC for Android (see [`LICENSE`](LICENSE), copied from the VLC for
-Android repository). The patch changes a VLC for Android source file.
+Android repository).
+
+Copyright (C) 2026 cnghockey, for the test script, the build guide and this README.
+The patch changes a VLC for Android source file. VLC's copyright stays with the VLC authors.
 
 Developed with Claude Code (Anthropic) under the author's direction, and tested on the author's own device.
