@@ -89,6 +89,10 @@ VLC's own settings. After that, the Play Store no longer updates VLC for you.
 - Known quirk: VLC adds the extra twice (in `loadMedia` and on `Opening`). That already happens for
   local paths. The subtitle menu may list the track twice. Not checked.
 - The intent extra carries one subtitle only. That is VLC's design.
+- A build without your own OpenSubtitles API key has a broken "download subtitles" search
+  ([details](docs/BUILD-WINDOWS.md#6-build)). Official VLC builds carry VideoLAN's key. Yours does not.
+- Installing a build with a different signature resets VLC's settings, including "Preferred subtitle
+  language". Set it again, or no subtitle track is chosen for you.
 
 ## Why no APK
 

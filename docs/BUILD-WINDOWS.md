@@ -78,10 +78,20 @@ Never publish the `.jks` file or its password.
 ```bash
 export ANDROID_HOME=$W/android-sdk ANDROID_SDK_ROOT=$W/android-sdk
 export PASSWORD_KEYSTORE="the password you chose"
+export VLC_OPEN_SUBTITLES_API_KEY="your own OpenSubtitles API key"   # see the warning below
 $W/tools/gradle-9.3.1/bin/gradle.bat --console=plain \
   -PkeyStoreFile=$W/keys/mine.jks -Pstorealias=mine \
   :application:app:assembleSignedRelease
 ```
+
+**Warning: the OpenSubtitles key.** VLC's "download subtitles" search needs an OpenSubtitles API key
+that is fixed into the app at build time (`application/resources/build.gradle` reads the environment
+variable `VLC_OPEN_SUBTITLES_API_KEY`, or the Gradle property `vlc_open_subtitles_api_key`). Official
+VLC builds contain VideoLAN's key. **Your build does not.** Without a key the build still succeeds, but
+VLC shows "OpenSubtitles is currently unavailable" when you search. The API answers HTTP 403
+("You cannot consume this service") to a blank key. Make your own free key in your OpenSubtitles account
+(API consumers). Do not copy VideoLAN's key out of an official APK: it is not yours to use.
+The first build in this project had no key, and the search broke.
 
 Output: `application/app/build/outputs/apk/signedRelease/VLC-Android-3.7.2-all.apk`
 (a universal APK, about 120 MB). `apksigner verify --print-certs` shows your key.
