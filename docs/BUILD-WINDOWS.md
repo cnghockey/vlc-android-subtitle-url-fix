@@ -47,9 +47,10 @@ The checksum is the one in VLC's `buildsystem/compile.sh`.
 git -c core.autocrlf=false clone --depth 1 --branch 3.7.2 https://code.videolan.org/videolan/vlc-android.git $W/src
 cd $W/src
 git apply /path/to/patches/0001-player-accept-uri-in-subtitles_location.patch
+git apply /path/to/patches/0002-subtitle-search-reads-show-season-episode-from-filename.patch   # optional: the search name
 ```
 
-Windows Git turns files into CRLF by default. The patch uses LF, and `git apply` then fails with
+Windows Git turns files into CRLF by default. The patches use LF, and `git apply` then fails with
 "patch does not apply". `core.autocrlf=false` avoids that.
 
 Two more setup lines:

@@ -1,0 +1,129 @@
+diff --git a/application/vlc-android/src/org/videolan/vlc/gui/video/VideoPlayerActivity.kt b/application/vlc-android/src/org/videolan/vlc/gui/video/VideoPlayerActivity.kt
+index 79293d8..8c759a4 100644
+--- a/application/vlc-android/src/org/videolan/vlc/gui/video/VideoPlayerActivity.kt
++++ b/application/vlc-android/src/org/videolan/vlc/gui/video/VideoPlayerActivity.kt
+@@ -250,6 +250,8 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback,
+ 
+     var hasPhysicalNotch: Boolean = false
+     private var subtitlesExtraPath: String? = null
++    /** File name sent by the calling app (the `filename` extra). The subtitle search reads show, season and episode from it. */
++    var subtitleSearchName: String? = null
+     private lateinit var startedScope: CoroutineScope
+     private var videoRemoteJob: Job? = null
+     var service: PlaybackService? = null
+@@ -2222,6 +2224,7 @@ open class VideoPlayerActivity : AppCompatActivity(), PlaybackService.Callback,
+                 if (!subtitlesExtraPath.isNullOrEmpty()) service.addSubtitleTrack(subtitlesExtraPath!!, true)
+                 if (intent.hasExtra(PLAY_EXTRA_ITEM_TITLE))
+                     itemTitle = extras.getString(PLAY_EXTRA_ITEM_TITLE)
++                subtitleSearchName = extras.getString("filename")
+             }
+             val restorePlayback = hasMedia && currentMedia?.uri == videoUri
+             if (startTime == 0L && savedTime > 0L && restorePlayback) startTime = savedTime
+diff --git a/application/vlc-android/src/org/videolan/vlc/gui/video/VideoPlayerOverlayDelegate.kt b/application/vlc-android/src/org/videolan/vlc/gui/video/VideoPlayerOverlayDelegate.kt
+index 8de5429..c240000 100644
+--- a/application/vlc-android/src/org/videolan/vlc/gui/video/VideoPlayerOverlayDelegate.kt
++++ b/application/vlc-android/src/org/videolan/vlc/gui/video/VideoPlayerOverlayDelegate.kt
+@@ -1113,7 +1113,7 @@ class VideoPlayerOverlayDelegate (private val player: VideoPlayerActivity) {
+     }
+ 
+     private fun downloadSubtitles() = player.service?.currentMediaWrapper?.let {
+-        MediaUtils.getSubs(player, it)
++        MediaUtils.getSubs(player, it, player.subtitleSearchName)
+     }
+ 
+     fun showBookmarks() {
+diff --git a/application/vlc-android/src/org/videolan/vlc/media/MediaUtils.kt b/application/vlc-android/src/org/videolan/vlc/media/MediaUtils.kt
+index c346c98..56f75bb 100644
+--- a/application/vlc-android/src/org/videolan/vlc/media/MediaUtils.kt
++++ b/application/vlc-android/src/org/videolan/vlc/media/MediaUtils.kt
+@@ -77,8 +77,8 @@ private const val TAG = "VLC/MediaUtils"
+ private typealias MediaContentResolver = SimpleArrayMap<String, IMediaContentResolver>
+ 
+ object MediaUtils {
+-    fun getSubs(activity: FragmentActivity, media: MediaWrapper) {
+-        if (activity is AppCompatActivity) showSubtitleDownloaderDialogFragment(activity, media.uri, media.title)
++    fun getSubs(activity: FragmentActivity, media: MediaWrapper, searchName: String? = null) {
++        if (activity is AppCompatActivity) showSubtitleDownloaderDialogFragment(activity, media.uri, searchName ?: media.title)
+         else {
+             val intent = Intent(activity, DialogActivity::class.java).setAction(DialogActivity.KEY_SUBS_DL)
+                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+diff --git a/application/vlc-android/src/org/videolan/vlc/util/EpisodeGuess.kt b/application/vlc-android/src/org/videolan/vlc/util/EpisodeGuess.kt
+new file mode 100644
+index 0000000..6c191f6
+--- /dev/null
++++ b/application/vlc-android/src/org/videolan/vlc/util/EpisodeGuess.kt
+@@ -0,0 +1,38 @@
++/*
++ * Copyright (C) 2026 cnghockey
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ */
++package org.videolan.vlc.util
++
++/**
++ * Reads the show name, season and episode from a file name such as
++ * "Show Name S03E02 Episode Title (1080p).mkv" or "Show.Name.S03E02.1080p.mkv".
++ * Also reads "Show 3x02". The name may be a full path: only the last part is used.
++ * Returns null when the name has no season and episode part (a film, for example).
++ */
++data class EpisodeGuess(val show: String, val season: Int, val episode: Int) {
++    companion object {
++        private val SEASON_EPISODE = Regex("""^(.*?)[\s._-]+[sS](\d{1,2})[\s._-]*[eE](\d{1,3})(?!\d)""")
++        private val CROSS = Regex("""^(.*?)[\s._-]+(\d{1,2})[xX](\d{2,3})(?!\d)""")
++        private val TRAILING_YEAR = Regex("""\s*[(\[]?\s*(?:19|20)\d{2}\s*[)\]]?\s*$""")
++        private val SPACES = Regex("""\s+""")
++
++        fun from(name: String?): EpisodeGuess? {
++            if (name.isNullOrBlank()) return null
++            // A server on Windows sends a path with backslashes. Keep the last part only.
++            val base = name.substringAfterLast('\\').substringAfterLast('/')
++            val match = SEASON_EPISODE.find(base) ?: CROSS.find(base) ?: return null
++            val show = match.groupValues[1].replace('.', ' ').replace('_', ' ')
++                .replace(TRAILING_YEAR, "")
++                .replace(SPACES, " ")
++                .trim(' ', '-', '(', '[')
++                .trim()
++            if (show.isEmpty()) return null
++            return EpisodeGuess(show, match.groupValues[2].toInt(), match.groupValues[3].toInt())
++        }
++    }
++}
+diff --git a/application/vlc-android/src/org/videolan/vlc/viewmodels/SubtitlesModel.kt b/application/vlc-android/src/org/videolan/vlc/viewmodels/SubtitlesModel.kt
+index 54a18f1..4f600c8 100644
+--- a/application/vlc-android/src/org/videolan/vlc/viewmodels/SubtitlesModel.kt
++++ b/application/vlc-android/src/org/videolan/vlc/viewmodels/SubtitlesModel.kt
+@@ -41,6 +41,7 @@ import org.videolan.vlc.R
+ import org.videolan.vlc.gui.dialogs.State
+ import org.videolan.vlc.gui.dialogs.SubtitleItem
+ import org.videolan.vlc.repository.ExternalSubRepository
++import org.videolan.vlc.util.EpisodeGuess
+ import org.videolan.vlc.util.TextUtils
+ import java.io.File
+ import java.util.Locale
+@@ -101,7 +102,14 @@ class SubtitlesModel(context: Context, private val mediaUri: Uri, private val na
+     val history: MediatorLiveData<List<SubtitleItem>> = MediatorLiveData()
+ 
+     private var searchJob: Job? = null
++    /** Show, season and episode read from the name. Null for a film. */
++    private val guess = EpisodeGuess.from(name)
+     init {
++        guess?.let {
++            observableSearchName.set(it.show)
++            observableSearchSeason.set(it.season.toString())
++            observableSearchEpisode.set(it.episode.toString())
++        }
+         observableSearchLanguage.addOnPropertyChangedCallback(object : Observable.OnPropertyChangedCallback() {
+             override fun onPropertyChanged(sender: Observable?, propertyId: Int) {
+                 if (observableSearchLanguage.get() != previousSearchLanguage) {
+@@ -229,7 +237,7 @@ class SubtitlesModel(context: Context, private val mediaUri: Uri, private val na
+                             // No result for hash. Falling back to name search
+                             if (hashSubs.isEmpty()) getSubtitleByName(videoFile.name, null, null, observableSearchLanguage.get(), observableSearchHearingImpaired.get() == true).data else hashSubs
+                         } else {
+-                            getSubtitleByName(name, null, null, observableSearchLanguage.get(), observableSearchHearingImpaired.get() == true).data
++                            getSubtitleByName(guess?.show ?: name, guess?.episode, guess?.season, observableSearchLanguage.get(), observableSearchHearingImpaired.get() == true).data
+                         }
+ 
+                     }

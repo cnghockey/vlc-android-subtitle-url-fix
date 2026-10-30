@@ -1,23 +1,48 @@
-# VLC for Android: subtitle web addresses in `subtitles_location`
+# VLC for Android as an external player: subtitle addresses and the subtitle search name
 
-VLC for Android ignores a subtitle that an app gives it as a web address (`http://…`, `https://…`).
-This repository has a 7-line fix, the proof, and the steps to build and install it.
+Two problems appear when an app such as **Jellyfin for Android TV** starts VLC for Android:
+
+1. VLC **ignores a subtitle** that the app gives it as a web address (`http://…`, `https://…`).
+2. VLC's **subtitle search** opens with the wrong name, and the Season and Episode boxes are empty.
+
+This repository has a small patch for each, the proof, and the steps to build and install them.
 
 > **Not affiliated with VideoLAN.** "VLC" is a trademark of VideoLAN.
-> This repository holds a patch, not a release. No APK is published ([why](#why-no-apk)).
-> The patch has not been submitted to VideoLAN. Anyone may submit it: see
+> This repository holds patches, not a release. No APK is published ([why](#why-no-apk)).
+> The patches have not been submitted to VideoLAN. Anyone may submit them: see
 > [`docs/upstream-merge-request.md`](docs/upstream-merge-request.md).
 
-## Who this affects
+| Patch | What it changes | Status |
+|---|---|---|
+| [`0001`](patches/0001-player-accept-uri-in-subtitles_location.patch) | A subtitle given as a web address is loaded | Tested on a device |
+| [`0002`](patches/0002-subtitle-search-reads-show-season-episode-from-filename.patch) | The subtitle search reads show, season and episode from the file name | Built. **Not yet checked on a device.** |
 
-Any app that starts VLC with the `subtitles_location` intent extra set to a URL.
-Example: **Jellyfin for Android TV** with VLC as the external player. The video plays.
-VLC shows no subtitle, and it shows no error.
+Apply them in this order. They apply cleanly to VLC for Android `3.7.2`, and the result is the code that was built.
 
-VLC issue [#1904](https://code.videolan.org/videolan/vlc-android/-/issues/1904) reports this
-since 2017. It is still open.
+## What Jellyfin for Android TV sends VLC
 
-## The cause
+Read from the app's source (version 0.19.10, `ExternalPlayerActivity.kt`) and from Jellyfin's own database:
+
+| Intent extra | What it holds |
+|---|---|
+| `title` | The episode name plus `S3E2`. **No show name.** |
+| `filename` | The file name from the server's path (see the note below). VLC ignores it. |
+| `subtitles_location` | The web address of the **first** separate subtitle file. One subtitle only. |
+
+- **Which subtitle is first:** Jellyfin numbers separate subtitle files in file-name order. So `….eng.srt` comes
+  before `….fra.srt`, and a video with both an English and a French file gets the English one. In Jellyfin's
+  database, all six videos that had two separate files follow file-name order. Four of them were an English
+  and a French pair.
+- **The file name:** the app takes it with `File(path).name`. When the server runs Windows, the path has
+  backslashes, and on Android that call keeps the whole path. This comes from reading the code. It was not
+  observed on a device. Patch 0002 keeps only the last part, so it works either way.
+
+## Problem 1: the subtitle web address is ignored
+
+VLC issue [#1904](https://code.videolan.org/videolan/vlc-android/-/issues/1904) reports this since 2017.
+It is still open.
+
+**The cause**
 
 1. The app sends `subtitles_location = "http://server/…/Stream.srt"`.
 2. `VideoPlayerActivity` reads it as a `String` and calls `service.addSubtitleTrack(path, true)`
@@ -30,10 +55,7 @@ since 2017. It is still open.
 
 Checked in VLC for Android `3.7.2` and `master` (October 2026), and in libvlcjni `master`.
 
-## The fix
-
-[`patches/0001-player-accept-uri-in-subtitles_location.patch`](patches/0001-player-accept-uri-in-subtitles_location.patch)
-changes one function, `PlayerController.addSubtitleTrack(path: String, select: Boolean)`.
+**Patch 0001** changes one function, `PlayerController.addSubtitleTrack(path: String, select: Boolean)`.
 If the path contains `://`, it goes to libvlc as a `Uri`. A normal local path takes the old route.
 
 ```kotlin
@@ -42,7 +64,7 @@ fun addSubtitleTrack(path: String, select: Boolean): Boolean =
     else mediaplayer.addSlave(IMedia.Slave.Type.Subtitle, path, select)
 ```
 
-## Proof
+### Proof for patch 0001
 
 **1. libvlc test (desktop VLC 3.0.24).** Same engine and same `add_slave` call as Android VLC.
 Run it yourself: [`test/libvlc_add_slave_test.py`](test/libvlc_add_slave_test.py).
@@ -69,23 +91,49 @@ libvlc decoder: using spu decoder module "subsdec"
 No "before" log of the unpatched app was recorded on the device. The "before" evidence is test 1
 and the code above.
 
+## Problem 2: the subtitle search opens with the wrong name
+
+VLC's search window fills **Name** from the `title` extra: `Episode Title S3E2`, with no show name.
+VLC never fills **Season** or **Episode**: only text you type sets them. A streamed video is not a local
+file, so VLC cannot compute a file hash for it. It searches by that one name alone, and the results
+are poor. The app also sends the real file name in `filename`. VLC reads the code path for `title` only.
+
+**Patch 0002** does three things:
+
+- The player keeps the `filename` extra.
+- A new helper, `EpisodeGuess`, reads show, season and episode from a name such as
+  `Show Name S03E02 Episode Title (1080p).mkv`, `Show.Name.2021.S03E02.mkv` or `Show Name 3x02`.
+  Only the last part of a path is used. A film, or a name with no season and episode, gives nothing,
+  and VLC behaves as before.
+- The search window opens with Name = `Show Name`, Season = `3`, Episode = `2`, and the first search
+  uses them.
+
+**Test status for patch 0002**
+
+- It compiled into the same VLC 3.7.2 release build as patch 0001.
+- The name rules were tried on 15 file names, including a full Windows path, in a Python copy of the same
+  regular expressions. All gave the expected result.
+- A Kotlin unit test was written but has **not been run**, so it is not in the patch.
+- It has **not been checked on a device yet**.
+
 ## Build and install
 
 [`docs/BUILD-WINDOWS.md`](docs/BUILD-WINDOWS.md) lists the steps that produced the APK on Windows 11.
 The build takes about 15 minutes. It needs no native compile: the release build uses the prebuilt
-libvlc from Maven.
+libvlc from Maven. Apply both patches in step 4.
 
 **Warning before you install.** Your build has a different signature from the Play Store VLC.
 Android will not install it over the top. You must uninstall the Play Store VLC first. That resets
-VLC's own settings. After that, the Play Store no longer updates VLC for you.
+VLC's own settings. After that, the Play Store no longer updates VLC for you. Later builds signed with
+the same key do update in place and keep your settings.
 
 ## What was and was not tested
 
 - Tested: VLC `3.7.2` built on Windows 11 (Gradle 9.3.1, JDK 21, Android SDK 36). One device
   (NVIDIA SHIELD, Android 11, arm64). One app (Jellyfin for Android TV 0.19.10). One subtitle URL
-  (an `http://` address on a local network, no login needed).
+  (an `http://` address on a local network, no login needed). This covers patch 0001 only.
 - Not tested: `https://`, `smb://`, `ftp://`, a subtitle that needs a login, other devices, other apps,
-  VLC 4 / `master`.
+  VLC 4 / `master`, and patch 0002 on a device.
 - Known quirk: VLC adds the extra twice (in `loadMedia` and on `Opening`). That already happens for
   local paths. The subtitle menu may list the track twice. Not checked.
 - The intent extra carries one subtitle only. That is VLC's design.
@@ -97,7 +145,7 @@ VLC's own settings. After that, the Play Store no longer updates VLC for you.
 ## Why no APK
 
 A binary signed with one person's key, named "VLC", is a modified VLC under VideoLAN's name. Build
-your own from the patch. Do not trust an APK from anyone, including this repository's author.
+your own from the patches. Do not trust an APK from anyone, including this repository's author.
 
 ## Author
 
@@ -109,6 +157,7 @@ GPL-2.0-or-later, the same as VLC for Android (see [`LICENSE`](LICENSE), copied 
 Android repository).
 
 Copyright (C) 2026 cnghockey, for the test script, the build guide and this README.
-The patch changes a VLC for Android source file. VLC's copyright stays with the VLC authors.
+The patches change VLC for Android source files, and patch 0002 adds a new file under the same license.
+VLC's copyright stays with the VLC authors.
 
 Developed with Claude Code (Anthropic) under the author's direction, and tested on the author's own device.
