@@ -15,7 +15,7 @@ This repository has a small patch for each, the proof, and the steps to build an
 | Patch | What it changes | Status |
 |---|---|---|
 | [`0001`](patches/0001-player-accept-uri-in-subtitles_location.patch) | A subtitle given as a web address is loaded | Tested on a device |
-| [`0002`](patches/0002-subtitle-search-reads-show-season-episode-from-filename.patch) | The subtitle search reads show, season and episode from the file name | Built. **Not yet checked on a device.** |
+| [`0002`](patches/0002-subtitle-search-reads-show-season-episode-from-filename.patch) | The subtitle search reads show, season and episode from the file name | Tested on a device: Name, Season and Episode were filled correctly |
 
 | [`0003`](patches/0003-opensubtitles-send-the-build-time-api-key-as-given.patch) | A self-built VLC sends your own OpenSubtitles API key as it is. **Needed** for the subtitle search to work in your own build ([why](docs/BUILD-WINDOWS.md#6-build)) | Tested on a device: the subtitle search returns results |
 
@@ -116,7 +116,8 @@ are poor. The app also sends the real file name in `filename`. VLC reads the cod
 - The name rules were tried on 15 file names, including a full Windows path, in a Python copy of the same
   regular expressions. All gave the expected result.
 - A Kotlin unit test was written but has **not been run**, so it is not in the patch.
-- It has **not been checked on a device yet**.
+- It was checked on a device (NVIDIA SHIELD, Jellyfin for Android TV 0.19.10): the search window opened
+  with the right Name, Season and Episode. One device, one app.
 
 ## Build and install
 
@@ -133,9 +134,11 @@ the same key do update in place and keep your settings.
 
 - Tested: VLC `3.7.2` built on Windows 11 (Gradle 9.3.1, JDK 21, Android SDK 36). One device
   (NVIDIA SHIELD, Android 11, arm64). One app (Jellyfin for Android TV 0.19.10). One subtitle URL
-  (an `http://` address on a local network, no login needed). This covers patch 0001 only.
+  (an `http://` address on a local network, no login needed). This covers patch 0001. On the same
+  device and app, patch 0002 filled Name, Season and Episode correctly, and with patch 0003 and a
+  key of its own the subtitle search returned results.
 - Not tested: `https://`, `smb://`, `ftp://`, a subtitle that needs a login, other devices, other apps,
-  VLC 4 / `master`, and patch 0002 on a device.
+  and VLC 4 / `master`.
 - Known quirk: VLC adds the extra twice (in `loadMedia` and on `Opening`). That already happens for
   local paths. The subtitle menu may list the track twice. Not checked.
 - The intent extra carries one subtitle only. That is VLC's design.
