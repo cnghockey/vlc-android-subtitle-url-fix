@@ -48,6 +48,7 @@ git -c core.autocrlf=false clone --depth 1 --branch 3.7.2 https://code.videolan.
 cd $W/src
 git apply /path/to/patches/0001-player-accept-uri-in-subtitles_location.patch
 git apply /path/to/patches/0002-subtitle-search-reads-show-season-episode-from-filename.patch   # optional: the search name
+git apply /path/to/patches/0003-opensubtitles-send-the-build-time-api-key-as-given.patch        # needed: your own key
 ```
 
 Windows Git turns files into CRLF by default. The patches use LF, and `git apply` then fails with
@@ -92,7 +93,17 @@ VLC builds contain VideoLAN's key. **Your build does not.** Without a key the bu
 VLC shows "OpenSubtitles is currently unavailable" when you search. The API answers HTTP 403
 ("You cannot consume this service") to a blank key. Make your own free key in your OpenSubtitles account
 (API consumers). Do not copy VideoLAN's key out of an official APK: it is not yours to use.
-The first build in this project had no key, and the search broke.
+
+**A key alone is not enough: apply patch 0003.** VLC does not send the build-time value as it is. Its code
+adds ten fixed characters to the value and scrambles the result, so only a value cut for that scheme
+works. A normal key (32 characters) goes out as a wrong, longer string, and the API answers HTTP 403 again.
+Patch 0003 sends the build-time value as given.
+
+The first build in this project had no key, and the search broke. The second build had a key but not
+patch 0003, and it broke the same way. When the request was reproduced against the live API, the key
+as given got HTTP 200, and the header the stock code builds got HTTP 403.
+To test a key, search for a name nobody searched before. The API's cache answers a repeated search
+with HTTP 200 for any key, even none, and a test on a cached search proves nothing.
 
 Output: `application/app/build/outputs/apk/signedRelease/VLC-Android-3.7.2-all.apk`
 (a universal APK, about 120 MB). `apksigner verify --print-certs` shows your key.

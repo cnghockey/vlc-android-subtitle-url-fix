@@ -1,0 +1,13 @@
+diff --git a/application/resources/src/main/java/org/videolan/resources/opensubtitles/OpenSubtitleService.kt b/application/resources/src/main/java/org/videolan/resources/opensubtitles/OpenSubtitleService.kt
+index 7c73f25..ac6b2e3 100644
+--- a/application/resources/src/main/java/org/videolan/resources/opensubtitles/OpenSubtitleService.kt
++++ b/application/resources/src/main/java/org/videolan/resources/opensubtitles/OpenSubtitleService.kt
+@@ -73,7 +73,7 @@ private class UserAgentInterceptor(val userAgent: String): Interceptor {
+         val request: Request = chain.request()
+         val requestBuilder = request.newBuilder()
+             .header("User-Agent", userAgent)
+-            .header("Api-Key", getOSK().substrlng(55))
++            .header("Api-Key", BuildConfig.VLC_OPEN_SUBTITLES_API_KEY)
+             .header("Accept", "application/json")
+         if (OpenSubtitleClient.authorizationToken.isNotEmpty())requestBuilder.header("Authorization", OpenSubtitleClient.authorizationToken)
+         return chain.proceed(requestBuilder.build())

@@ -17,6 +17,8 @@ This repository has a small patch for each, the proof, and the steps to build an
 | [`0001`](patches/0001-player-accept-uri-in-subtitles_location.patch) | A subtitle given as a web address is loaded | Tested on a device |
 | [`0002`](patches/0002-subtitle-search-reads-show-season-episode-from-filename.patch) | The subtitle search reads show, season and episode from the file name | Built. **Not yet checked on a device.** |
 
+| [`0003`](patches/0003-opensubtitles-send-the-build-time-api-key-as-given.patch) | A self-built VLC sends your own OpenSubtitles API key as it is. **Needed** for the subtitle search to work in your own build ([why](docs/BUILD-WINDOWS.md#6-build)) | Tested on a device: the subtitle search returns results |
+
 Apply them in this order. They apply cleanly to VLC for Android `3.7.2`, and the result is the code that was built.
 
 ## What Jellyfin for Android TV sends VLC
@@ -120,7 +122,7 @@ are poor. The app also sends the real file name in `filename`. VLC reads the cod
 
 [`docs/BUILD-WINDOWS.md`](docs/BUILD-WINDOWS.md) lists the steps that produced the APK on Windows 11.
 The build takes about 15 minutes. It needs no native compile: the release build uses the prebuilt
-libvlc from Maven. Apply both patches in step 4.
+libvlc from Maven. Apply the patches in step 4. Patch 0003 is not optional if you want the subtitle search.
 
 **Warning before you install.** Your build has a different signature from the Play Store VLC.
 Android will not install it over the top. You must uninstall the Play Store VLC first. That resets
@@ -137,8 +139,9 @@ the same key do update in place and keep your settings.
 - Known quirk: VLC adds the extra twice (in `loadMedia` and on `Opening`). That already happens for
   local paths. The subtitle menu may list the track twice. Not checked.
 - The intent extra carries one subtitle only. That is VLC's design.
-- A build without your own OpenSubtitles API key has a broken "download subtitles" search
-  ([details](docs/BUILD-WINDOWS.md#6-build)). Official VLC builds carry VideoLAN's key. Yours does not.
+- A build without your own OpenSubtitles API key has a broken "download subtitles" search, and so does a
+  build with a key but without patch 0003 ([details](docs/BUILD-WINDOWS.md#6-build)). Official VLC builds
+  carry VideoLAN's key. Yours does not.
 - Installing a build with a different signature resets VLC's settings, including "Preferred subtitle
   language". Set it again, or no subtitle track is chosen for you.
 
