@@ -49,6 +49,7 @@ cd $W/src
 git apply /path/to/patches/0001-player-accept-uri-in-subtitles_location.patch
 git apply /path/to/patches/0002-subtitle-search-reads-show-season-episode-from-filename.patch   # optional: the search name
 git apply /path/to/patches/0003-opensubtitles-send-the-build-time-api-key-as-given.patch        # needed: your own key
+git apply /path/to/patches/0004-frame-rate-match-on-android-11-uses-the-display-mode.patch      # optional: frame rate matching on Android 11
 ```
 
 Windows Git turns files into CRLF by default. The patches use LF, and `git apply` then fails with

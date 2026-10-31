@@ -1,9 +1,10 @@
 # VLC for Android as an external player: subtitle addresses and the subtitle search name
 
-Two problems appear when an app such as **Jellyfin for Android TV** starts VLC for Android:
+Three problems appear with VLC for Android on an NVIDIA SHIELD TV, started by an app such as **Jellyfin for Android TV**:
 
 1. VLC **ignores a subtitle** that the app gives it as a web address (`http://…`, `https://…`).
 2. VLC's **subtitle search** opens with the wrong name, and the Season and Episode boxes are empty.
+3. VLC's **Match Display Frame Rate** setting does nothing: a 24 fps film plays at 59.94 Hz.
 
 This repository has a small patch for each, the proof, and the steps to build and install them.
 
@@ -18,6 +19,8 @@ This repository has a small patch for each, the proof, and the steps to build an
 | [`0002`](patches/0002-subtitle-search-reads-show-season-episode-from-filename.patch) | The subtitle search reads show, season and episode from the file name | Tested on a device: Name, Season and Episode were filled correctly |
 
 | [`0003`](patches/0003-opensubtitles-send-the-build-time-api-key-as-given.patch) | A self-built VLC sends your own OpenSubtitles API key as it is. **Needed** for the subtitle search to work in your own build ([why](docs/BUILD-WINDOWS.md#6-build)) | Tested on a device: the subtitle search returns results |
+
+| [`0004`](patches/0004-frame-rate-match-on-android-11-uses-the-display-mode.patch) | On Android 11, "Match Display Frame Rate" also asks for a display mode, and applies it | Tested on a device: the screen went to 24.000 Hz for a 24 fps film |
 
 Apply them in this order. They apply cleanly to VLC for Android `3.7.2`, and the result is the code that was built.
 
@@ -119,6 +122,42 @@ are poor. The app also sends the real file name in `filename`. VLC reads the cod
 - It was checked on a device (NVIDIA SHIELD, Jellyfin for Android TV 0.19.10): the search window opened
   with the right Name, Season and Episode. One device, one app.
 
+## Problem 3: "Match Display Frame Rate" does nothing
+
+VLC has a setting, **Settings > Video > Match Display Frame Rate**. It is off by default. It should switch the
+TV to the frame rate of the film: 24 Hz for a 24 fps film. Without it, the SHIELD keeps 59.94 Hz and a 24 fps
+film shows an uneven frame rhythm.
+
+**The cause**
+
+1. On Android 11, VLC asks for the frame rate with one call only: `Surface.setFrameRate()`
+   (`FrameRateManager.setFrameRateR`).
+2. The SHIELD TV firmware (Android 11) switches that call off. `getprop ro.vendor.surface_flinger.use_frame_rate_api`
+   answers `false`. The call does nothing.
+3. VLC has an older route for Android 6 to 10: it asks for a display mode (`preferredDisplayModeId`). It is not used on
+   Android 11. It also changes the window settings in place (`window.attributes.preferredDisplayModeId = …`) and never
+   tells Android, so the change may never reach the display.
+
+**Patch 0004** does two things: on Android 11 it also uses the older route, and it applies the mode with
+`window.attributes = window.attributes.apply { preferredDisplayModeId = … }`.
+
+### Proof for patch 0004
+
+NVIDIA SHIELD TV, Android 11, VLC `3.7.2`, one HEVC film at 24 fps, measured with `adb shell dumpsys` while the film played.
+The setting was on in both cases.
+
+| | Before the patch | With the patch |
+|---|---|---|
+| Screen mode while the film plays | 3840x2160 at 59.94 Hz, for the whole 133-second recording | 3840x2160 at 24.000 Hz (mode 52) |
+| Display mode asked for by the app | none | mode 52 |
+| Time the screen has spent at 24 Hz since boot | 1.8 s | 22.9 s at the check, and growing |
+
+- VLC ignores videos shorter than 5 minutes (its own rule in `setFrameRateM`).
+- The TV may go black for 1 to 2 seconds when the mode changes. VLC resumes by itself.
+- The modes come from the TV. The tested TV offered no 25 Hz or 50 Hz mode, so 25 fps video is not matched.
+- Tested on one device, one TV and one file. On another Android 11 device, the patch makes VLC use both routes.
+  Both ask for the same rate.
+
 ## Build and install
 
 [`docs/BUILD-WINDOWS.md`](docs/BUILD-WINDOWS.md) lists the steps that produced the APK on Windows 11.
@@ -136,7 +175,8 @@ the same key do update in place and keep your settings.
   (NVIDIA SHIELD, Android 11, arm64). One app (Jellyfin for Android TV 0.19.10). One subtitle URL
   (an `http://` address on a local network, no login needed). This covers patch 0001. On the same
   device and app, patch 0002 filled Name, Season and Episode correctly, and with patch 0003 and a
-  key of its own the subtitle search returned results.
+  key of its own the subtitle search returned results. Patch 0004 switched the screen to 24.000 Hz for a
+  24 fps film.
 - Not tested: `https://`, `smb://`, `ftp://`, a subtitle that needs a login, other devices, other apps,
   and VLC 4 / `master`.
 - Known quirk: VLC adds the extra twice (in `loadMedia` and on `Opening`). That already happens for

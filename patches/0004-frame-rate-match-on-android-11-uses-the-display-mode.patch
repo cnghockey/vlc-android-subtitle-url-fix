@@ -1,0 +1,26 @@
+diff --git a/application/vlc-android/src/org/videolan/vlc/util/FrameRateManager.kt b/application/vlc-android/src/org/videolan/vlc/util/FrameRateManager.kt
+index c0efe58..0e4473e 100644
+--- a/application/vlc-android/src/org/videolan/vlc/util/FrameRateManager.kt
++++ b/application/vlc-android/src/org/videolan/vlc/util/FrameRateManager.kt
+@@ -65,7 +65,11 @@ class FrameRateManager(val activity: FragmentActivity, val service: PlaybackServ
+ 
+             when {
+                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> setFrameRateS(videoFrameRate, surface)
+-                Build.VERSION.SDK_INT == Build.VERSION_CODES.R -> setFrameRateR(videoFrameRate, surface)
++                Build.VERSION.SDK_INT == Build.VERSION_CODES.R -> {
++                    setFrameRateR(videoFrameRate, surface)
++                    //some vendors turn the Android 11 frame rate API off (SHIELD TV): also ask for a display mode
++                    setFrameRateM(videoFrameRate, window)
++                }
+                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> setFrameRateM(videoFrameRate, window)
+                 else -> {}
+             }
+@@ -148,7 +152,7 @@ class FrameRateManager(val activity: FragmentActivity, val service: PlaybackServ
+ 
+                 // set frame rate
+                 if (modeToUse != currentMode) {
+-                    window.attributes.preferredDisplayModeId = modeToUse.modeId
++                    window.attributes = window.attributes.apply { preferredDisplayModeId = modeToUse.modeId }
+                     getDisplayManager().registerDisplayListener(displayListener, null)
+                 }
+             }
