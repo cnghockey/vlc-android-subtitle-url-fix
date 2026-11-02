@@ -6,7 +6,7 @@ index 79293d8..8c759a4 100644
  
      var hasPhysicalNotch: Boolean = false
      private var subtitlesExtraPath: String? = null
-+    /** File name sent by the calling app (the `filename` extra). The subtitle search reads show, season and episode from it. */
++    /** File name sent by the calling app (the `filename` extra), kept only when it holds a show, season and episode. A film keeps VLC's own title: the extra can be a full path on the server. */
 +    var subtitleSearchName: String? = null
      private lateinit var startedScope: CoroutineScope
      private var videoRemoteJob: Job? = null
@@ -15,7 +15,7 @@ index 79293d8..8c759a4 100644
                  if (!subtitlesExtraPath.isNullOrEmpty()) service.addSubtitleTrack(subtitlesExtraPath!!, true)
                  if (intent.hasExtra(PLAY_EXTRA_ITEM_TITLE))
                      itemTitle = extras.getString(PLAY_EXTRA_ITEM_TITLE)
-+                subtitleSearchName = extras.getString("filename")
++                subtitleSearchName = extras.getString("filename")?.takeIf { org.videolan.vlc.util.EpisodeGuess.from(it) != null }
              }
              val restorePlayback = hasMedia && currentMedia?.uri == videoUri
              if (startTime == 0L && savedTime > 0L && restorePlayback) startTime = savedTime

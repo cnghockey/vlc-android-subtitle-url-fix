@@ -121,6 +121,11 @@ are poor. The app also sends the real file name in `filename`. VLC reads the cod
 - A Kotlin unit test was written but has **not been run**, so it is not in the patch.
 - It was checked on a device (NVIDIA SHIELD, Jellyfin for Android TV 0.19.10): the search window opened
   with the right Name, Season and Episode. One device, one app.
+- **Correction, 2026-11-01.** The first version of this patch sent the whole `filename` extra to the search
+  window, also for a film. A Windows server sends a full path in that extra, so for a film the Name box showed
+  a file path. The patch now keeps `filename` only when it holds a season and an episode, so a film keeps the
+  title that the app sends. In the built APK, the compiled code calls `EpisodeGuess.from` on the extra before
+  it keeps the name. This fix is **not yet checked on a device**.
 
 ## Problem 3: "Match Display Frame Rate" does nothing
 
